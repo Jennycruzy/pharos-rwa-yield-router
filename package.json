@@ -1,0 +1,8 @@
+{
+  "name": "pharos-rwa-yield-router",
+  "version": "0.1.0",
+  "description": "Risk-aware RWA yield router for Pharos — discovers OpenFi reserve rates, ranks risk-adjusted, and supplies into the best accessible yield.",
+  "license": "MIT",
+  "dependencies": { "ethers": "^6.13.0" },
+  "devDependencies": { "ts-node": "^10.9.2", "typescript": "^5.4.0", "@types/node": "^20.0.0" }
+}
