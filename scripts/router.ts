@@ -49,6 +49,8 @@ export function renderDiscovery(rows: RankedRow[]): string {
       ? "inactive"
       : r.isFrozen
       ? "frozen"
+      : !r.allocatable
+      ? "zero-rate"
       : "allocatable";
     lines.push(
       `  ${r.reserve.symbol.padEnd(6)}  ${r.apyPct.toFixed(2).padStart(6)}  ` +

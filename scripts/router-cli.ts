@@ -8,8 +8,8 @@
 //   allocate --asset USDC --amount 50   supply into a specific reserve
 //   withdraw --asset USDC --amount 50 | --max
 //   position                      show what you're supplied into + APY
-//   drag [--address 0x...]        show idle/lower-yield capital
-//   risk [--address 0x...]        show borrow liquidation distance
+//   drag [--address 0xYourWallet] show idle/lower-yield capital
+//   risk [--address 0xYourWallet] show borrow liquidation distance
 // ---------------------------------------------------------------------------
 
 import { JsonRpcProvider, Wallet } from "ethers";

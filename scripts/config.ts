@@ -4,7 +4,8 @@
 // Addresses below were confirmed from a real mainnet supply transaction:
 //   POOL  = the "Interacted With" contract on the supply tx
 //   USDC  = the token transferred / approved
-// Anything marked `TODO: VERIFY` still needs a one-time check (see README).
+// Mainnet USDC, RPC, data provider discovery, oracle reads, supply, and withdraw
+// have been verified live; see README for tx hashes and dates.
 // ---------------------------------------------------------------------------
 
 import { ZeroAddress } from "ethers";
@@ -34,8 +35,8 @@ export const CHAIN_ID = IS_TESTNET ? 688688 : 1672;
 export const RPC_URL =
   process.env.RPC_URL ??
   (IS_TESTNET
-    ? "https://testnet.dplabs-internal.com" // TODO: VERIFY testnet rpc
-    : "https://rpc.pharos.xyz");             // TODO: VERIFY mainnet rpc
+    ? "https://testnet.dplabs-internal.com" // testnet default from OpenFi docs
+    : "https://rpc.pharos.xyz");             // verified mainnet RPC
 
 // --- OpenFi contracts -------------------------------------------------------
 // Pool = where supply/withdraw/borrow go AND the spender you approve to.
@@ -59,9 +60,8 @@ export const POOL = IS_TESTNET ? OPENFI.testnet.pool : OPENFI.mainnet.pool;
 export const PROVIDER = IS_TESTNET ? OPENFI.testnet.provider : OPENFI.mainnet.provider;
 
 // --- Tokens / reserves ------------------------------------------------------
-// The router ranks across these reserves. USDC is confirmed; add the other
-// OpenFi reserve token addresses (USDT, GOLD, TSLA, NVDA, WETH, WBTC...) once
-// you read them off the explorer to widen the comparison.
+// The router ranks across the live reserve list exposed by OpenFi Pool
+// getReservesList() on mainnet as of June 4, 2026.
 export interface Reserve {
   symbol: string;
   address: string;
@@ -71,14 +71,10 @@ export interface Reserve {
 export const RESERVES: Reserve[] = IS_TESTNET
   ? [
       { symbol: "USDC", address: "0x72df0bcd7276f2dFbAc900D1CE63c272C4BCcCED", decimals: 6 }, // testnet doc
-      // TODO: add testnet reserves
     ]
   : [
       { symbol: "USDC", address: "0xC879C018dB60520F4355C26eD1a6D572cdAC1815", decimals: 6 }, // confirmed mainnet USDC
-      // TODO: VERIFY and add more mainnet reserves to make the router multi-asset:
-      // { symbol: "USDT", address: "0x...", decimals: 6 },
-      // { symbol: "GOLD", address: "0x...", decimals: 18 },
-      // { symbol: "TSLA", address: "0x...", decimals: 18 },
+      { symbol: "WETH", address: "0x1f4b7011Ee3d53969bb67F59428a9ec0477856E9", decimals: 18 }, // discovered via getReservesList()
     ];
 
 export function reserveBySymbol(sym: string): Reserve | undefined {

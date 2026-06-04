@@ -16,24 +16,20 @@ export function rpcProvider(): JsonRpcProvider {
   return provider;
 }
 
-let readAddrCache: string | null = null;
+let dataProviderCache: string | null = null;
 
-async function readContract(probeAsset: string): Promise<Contract> {
-  if (readAddrCache) return new Contract(readAddrCache, OPENFI_ABI, provider);
+async function dataContract(probeAsset: string): Promise<Contract> {
+  if (dataProviderCache) return new Contract(dataProviderCache, OPENFI_ABI, provider);
 
-  // Try the Pool first against the actual reserve being read. ZeroAddress may
-  // legitimately revert even when the Pool and ABI are correct.
+  // Config/user reads may live on the Pool or on a separate data provider.
   const pool = new Contract(POOL, OPENFI_ABI, provider);
   try {
-    await Promise.all([
-      pool.getReserveData.staticCall(probeAsset),
-      pool.getReserveConfigurationData.staticCall(probeAsset),
-    ]);
-    readAddrCache = POOL;
+    await pool.getReserveConfigurationData.staticCall(probeAsset);
+    dataProviderCache = POOL;
     return pool;
   } catch {
     if (PROVIDER && PROVIDER !== ZeroAddress) {
-      readAddrCache = PROVIDER;
+      dataProviderCache = PROVIDER;
       return new Contract(PROVIDER, OPENFI_ABI, provider);
     }
     try {
@@ -41,14 +37,14 @@ async function readContract(probeAsset: string): Promise<Contract> {
       const ap = new Contract(addressesProvider, ADDRESSES_PROVIDER_ABI, provider);
       const dataProvider = (await ap.getPoolDataProvider.staticCall()) as string;
       if (dataProvider && dataProvider !== ZeroAddress) {
-        readAddrCache = dataProvider;
+        dataProviderCache = dataProvider;
         return new Contract(dataProvider, OPENFI_ABI, provider);
       }
     } catch {
       // No data provider discovered; let the pool call below surface the error.
     }
     // No provider set — assume Pool and let the real call surface the error.
-    readAddrCache = POOL;
+    dataProviderCache = POOL;
     return pool;
   }
 }
@@ -65,13 +61,14 @@ export interface ReserveSnapshot {
 }
 
 export async function snapshotReserve(reserve: Reserve): Promise<ReserveSnapshot> {
-  const c = await readContract(reserve.address);
+  const pool = new Contract(POOL, OPENFI_ABI, provider);
+  const data = await dataContract(reserve.address);
   try {
-    const [data, cfg] = await Promise.all([
-      c.getReserveData(reserve.address),
-      c.getReserveConfigurationData(reserve.address),
+    const [reserveData, cfg] = await Promise.all([
+      pool.getReserveData(reserve.address),
+      data.getReserveConfigurationData(reserve.address),
     ]);
-    const liquidityRate: bigint = data.liquidityRate ?? data[5];
+    const liquidityRate: bigint = reserveData.liquidityRate ?? reserveData[5];
     const apyPct = Number((liquidityRate * 10000n) / RAY) / 100; // rate/1e27*100
     const isActive: boolean = cfg.isActive ?? cfg[8];
     const isFrozen: boolean = cfg.isFrozen ?? cfg[9];
@@ -101,7 +98,7 @@ export async function snapshotReserve(reserve: Reserve): Promise<ReserveSnapshot
 }
 
 export async function getUserPosition(reserve: Reserve, user: string) {
-  const c = await readContract(reserve.address);
+  const c = await dataContract(reserve.address);
   const d = await c.getUserReserveData(reserve.address, user);
   return {
     suppliedRaw: (d.currentBTokenBalance ?? d[0]) as bigint,
