@@ -5,9 +5,13 @@ This repository is a Codex/agent skill package for the Pharos RWA Yield Router.
 ## Install Behavior
 
 - Treat `SKILL.md` as the skill entry point.
+- If the user says "install this skill", "install the Pharos RWA Yield Router
+  skill", or gives this repository URL as a skill, interpret that as a file-only
+  skill installation request.
 - Installing the skill means cloning/copying this repository into the agent's
   skills directory.
-- Do not run `npm install` as part of skill installation.
+- Do not run `npm install` as part of skill installation unless the user
+  explicitly asks to execute the CLI or install runtime dependencies.
 - Do not create or commit `.env`; `.env` is intentionally ignored.
 - Install runtime dependencies only when the user asks to execute or verify the
   CLI locally.

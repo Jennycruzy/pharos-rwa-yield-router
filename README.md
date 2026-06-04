@@ -24,20 +24,17 @@ npx ts-node scripts/router-cli.ts withdraw --asset USDC --max
 ## Skill Installation
 
 Install the skill by cloning or copying this repository into the agent's skills
-directory. Installation is file-only: do not run `npm install` during skill
-installation.
+directory. Installation is file-only by default.
 
 Use this natural-language prompt with Codex or Claude:
 
 > Install the Pharos RWA Yield Router skill from
-> `https://github.com/Jennycruzy/pharos-rwa-yield-router`. Copy the repo as a
-> skill so the agent can read `SKILL.md`. Do not install npm dependencies during
-> skill installation. Only run `npm install` later if I ask you to execute the
-> CLI commands.
+> `https://github.com/Jennycruzy/pharos-rwa-yield-router`.
 
-Runtime dependency installation is separate from skill installation. The CLI
-uses `ethers`, `ts-node`, and `typescript`; run `npm install` only in a working
-copy when you are ready to execute `scripts/router-cli.ts`.
+Agents should interpret that as: copy the repository into the skill location so
+`SKILL.md` is readable. Runtime dependency installation is separate from skill
+installation. The CLI uses `ethers`, `ts-node`, and `typescript`; install those
+only in a working copy when executing `scripts/router-cli.ts`.
 
 ## Confirmed Status
 
