@@ -33,8 +33,8 @@ All actions go through `scripts/router-cli.ts` (`npx ts-node`).
 npx ts-node scripts/router-cli.ts discover
 ```
 Prints every OpenFi reserve with APY, LTV, liquidation threshold, status
-(allocatable / frozen / inactive), and a risk-adjusted score, plus the pAlpha
-14% benchmark row marked gated / not allocatable.
+(allocatable / zero-rate / frozen / inactive), and a risk-adjusted score, plus
+the pAlpha 14% benchmark row marked gated / not allocatable.
 
 **Allocate — supply into the best (or a named) reserve:**
 ```
@@ -116,7 +116,6 @@ borrows, it prints `no borrowed positions`; it does not invent prices.
 3. Confirm the ABI with one read before trusting writes:
    `npx ts-node scripts/router-cli.ts discover` — if USDC shows a sane APY and
    status, the pool address, ABI, and rate math are all correct.
-4. Widen the router by adding more reserve token addresses in `scripts/config.ts`.
 
 Mainnet OpenFi pool (`0x30b2e141…`) and USDC (`0xC879…`) are pre-filled and
 were confirmed from a real supply transaction. The `get*Data` reads try the

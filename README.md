@@ -57,6 +57,27 @@ The mainnet reserve list was read directly from OpenFi Pool `getReservesList()`
 and currently contains USDC and WETH. Discovery, yield drag, liquidation risk,
 and allocation all use the configured live reserve list.
 
+## Agent Usage
+
+Agents should call `npx ts-node scripts/router-cli.ts discover` first for any
+exploratory yield request. Use write commands only after the user clearly asks
+to deposit or withdraw funds.
+
+Natural-language requests map to CLI actions like this:
+
+- "What's the best RWA yield on Pharos?" -> `discover`
+- "Show me OpenFi rates" -> `discover`
+- "Where am I losing yield?" -> `drag`
+- "Find my idle USDC" -> `drag`
+- "How close am I to liquidation?" -> `risk`
+- "Put 50 USDC to work" -> `allocate --asset USDC --amount 50`
+- "Earn the best available yield with 50 USDC" -> `allocate --amount 50`
+- "Withdraw my USDC" -> `withdraw --asset USDC --max`
+- "How much am I earning?" -> `position`
+
+Read-only checks accept `--address 0xYourWallet`; without `--address`, the CLI
+uses the wallet derived from `PRIVATE_KEY` in `.env`.
+
 ## Network
 
 Mainnet (chain 1672) by default. `PHAROS_NETWORK=testnet` switches to 688688
