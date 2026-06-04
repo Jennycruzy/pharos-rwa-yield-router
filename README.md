@@ -23,18 +23,33 @@ npx ts-node scripts/router-cli.ts withdraw --asset USDC --max
 
 ## Skill Installation
 
-Install the skill by cloning or copying this repository into the agent's skills
-directory. Installation is file-only by default.
+Installation is **minimal and file-only**. The skill is ~60 KB and needs only
+`SKILL.md` and `scripts/` placed in the agent's skills directory
+(`~/.claude/skills/pharos-rwa-yield-router/`). It does **not** need the git
+history, `README.md`/`AGENTS.md`, `package-lock.json`, `node_modules/`, or an
+`npm install`.
 
 Use this natural-language prompt with Codex or Claude:
 
 > Install the Pharos RWA Yield Router skill from
 > `https://github.com/Jennycruzy/pharos-rwa-yield-router`.
 
-Agents should interpret that as: copy the repository into the skill location so
-`SKILL.md` is readable. Runtime dependency installation is separate from skill
-installation. The CLI uses `ethers`, `ts-node`, and `typescript`; install those
-only in a working copy when executing `scripts/router-cli.ts`.
+Agents should interpret that as: place only `SKILL.md` and `scripts/` into the
+skill location so `SKILL.md` is readable — **not** a full `git clone` of the
+repository. A shallow, sparse fetch keeps it lean:
+
+```bash
+DEST=~/.claude/skills/pharos-rwa-yield-router
+git clone --depth 1 --filter=blob:none --no-checkout \
+  https://github.com/Jennycruzy/pharos-rwa-yield-router "$DEST"
+git -C "$DEST" sparse-checkout set --no-cone /SKILL.md '/scripts/**'
+git -C "$DEST" checkout
+rm -rf "$DEST/.git"
+```
+
+Runtime dependency installation is separate from skill installation. The CLI
+uses `ethers`, `ts-node`, and `typescript`; install those only in a working copy
+when executing `scripts/router-cli.ts`.
 
 ## Confirmed Status
 

@@ -6,12 +6,19 @@ This repository is a Codex/agent skill package for the Pharos RWA Yield Router.
 
 - Treat `SKILL.md` as the skill entry point.
 - If the user says "install this skill", "install the Pharos RWA Yield Router
-  skill", or gives this repository URL as a skill, interpret that as a file-only
-  skill installation request.
-- Installing the skill means cloning/copying this repository into the agent's
-  skills directory.
-- Do not run `npm install` as part of skill installation unless the user
-  explicitly asks to execute the CLI or install runtime dependencies.
+  skill", or gives this repository URL as a skill, interpret that as a minimal,
+  file-only skill installation request.
+- Installing the skill means placing only `SKILL.md` and `scripts/` into the
+  agent's skills directory (`~/.claude/skills/pharos-rwa-yield-router/`). The
+  whole payload is ~60 KB.
+- Do **not** do a full `git clone` of this repository (it pulls the entire git
+  history and repo-only files like `README.md`, `AGENTS.md`, and
+  `package-lock.json` that the skill does not need). If fetching from GitHub, do
+  a shallow + sparse checkout limited to `SKILL.md` and `scripts/`, then remove
+  the `.git` directory.
+- Do **not** copy `node_modules/` (~52 MB) and do **not** run `npm install` as
+  part of skill installation unless the user explicitly asks to execute the CLI
+  or install runtime dependencies.
 - Do not create or commit `.env`; `.env` is intentionally ignored.
 - Install runtime dependencies only when the user asks to execute or verify the
   CLI locally.
