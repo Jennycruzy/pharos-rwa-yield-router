@@ -26,11 +26,12 @@ export const RPC_URL =
 // Provider = optional separate contract for the get*Data reads. On testnet
 // these were split (Pool 0x11d1ca…, Provider 0x54cb4f6C…). On mainnet we try
 // the Pool first and fall back to PROVIDER if reads revert — fill PROVIDER
-// only if needed.
+// only if needed. Mainnet also attempts ADDRESSES_PROVIDER().getPoolDataProvider()
+// automatically when Pool config/user reads are not exposed directly.
 export const OPENFI = {
   mainnet: {
     pool: "0x30b2e1411fd2ed9f1f46f59497e2186ce5be3b26", // confirmed (supply tx "Interacted With")
-    provider: ZeroAddress, // TODO: VERIFY only if reads on `pool` revert
+    provider: ZeroAddress, // optional override; auto-discovered on mainnet if left unset
   },
   testnet: {
     pool: "0x11d1ca4012d94846962bca2FBD58e5A27ddcBfC5",     // from testnet doc

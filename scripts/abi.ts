@@ -7,6 +7,7 @@
 
 export const OPENFI_ABI = [
   // --- reads ---
+  "function ADDRESSES_PROVIDER() view returns (address)",
   "function getReserveData(address asset) view returns (uint256 unbacked, uint256 accruedToTreasuryScaled, uint256 totalBToken, uint256 totalStableDebt, uint256 totalVariableDebt, uint256 liquidityRate, uint256 variableBorrowRate, uint256 stableBorrowRate, uint256 averageStableBorrowRate, uint256 liquidityIndex, uint256 variableBorrowIndex, uint40 lastUpdateTimestamp)",
   "function getReserveConfigurationData(address asset) view returns (uint256 decimals, uint256 ltv, uint256 liquidationThreshold, uint256 liquidationBonus, uint256 reserveFactor, bool usageAsCollateralEnabled, bool borrowingEnabled, bool stableBorrowRateEnabled, bool isActive, bool isFrozen)",
   "function getUserReserveData(address asset, address user) view returns (uint256 currentBTokenBalance, uint256 currentStableDebt, uint256 currentVariableDebt, uint256 principalStableDebt, uint256 scaledVariableDebt, uint256 stableBorrowRate, uint256 liquidityRate, uint40 stableRateLastUpdated, bool usageAsCollateralEnabled)",
@@ -20,4 +21,13 @@ export const ERC20_ABI = [
   "function approve(address spender, uint256 amount) returns (bool)",
   "function balanceOf(address) view returns (uint256)",
   "function decimals() view returns (uint8)",
+];
+
+export const ADDRESSES_PROVIDER_ABI = [
+  "function getPoolDataProvider() view returns (address)",
+  "function getPriceOracle() view returns (address)",
+];
+
+export const PRICE_ORACLE_ABI = [
+  "function getAssetPrice(address asset) view returns (uint256)",
 ];

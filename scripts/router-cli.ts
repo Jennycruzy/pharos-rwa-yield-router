@@ -8,6 +8,8 @@
 //   allocate --asset USDC --amount 50   supply into a specific reserve
 //   withdraw --asset USDC --amount 50 | --max
 //   position                      show what you're supplied into + APY
+//   drag [--address 0x...]        show idle/lower-yield capital
+//   risk [--address 0x...]        show borrow liquidation distance
 // ---------------------------------------------------------------------------
 
 import { JsonRpcProvider, Wallet } from "ethers";
@@ -16,6 +18,12 @@ import { rankReserves, bestAllocatable, renderDiscovery } from "./router";
 import { supply, withdraw } from "./execute";
 import { getUserPosition } from "./reader";
 import { formatUnits } from "ethers";
+import {
+  detectYieldDrag,
+  liquidationRisk,
+  renderLiquidationRisk,
+  renderYieldDrag,
+} from "./analytics";
 
 function arg(name: string): string | undefined {
   const i = process.argv.indexOf(`--${name}`);
@@ -23,6 +31,14 @@ function arg(name: string): string | undefined {
 }
 function flag(name: string): boolean {
   return process.argv.includes(`--${name}`);
+}
+
+function userAddress(): string {
+  const address = arg("address");
+  if (address) return address;
+  const pk = process.env.PRIVATE_KEY;
+  if (!pk) throw new Error("PRIVATE_KEY not set; pass --address for read-only checks");
+  return new Wallet(pk, new JsonRpcProvider(RPC_URL)).address;
 }
 
 async function main(): Promise<void> {
@@ -78,9 +94,7 @@ async function main(): Promise<void> {
     }
 
     case "position": {
-      const pk = process.env.PRIVATE_KEY;
-      if (!pk) throw new Error("PRIVATE_KEY not set");
-      const user = new Wallet(pk, new JsonRpcProvider(RPC_URL)).address;
+      const user = userAddress();
       console.log(`positions for ${user}:`);
       for (const r of RESERVES) {
         try {
@@ -95,8 +109,23 @@ async function main(): Promise<void> {
       break;
     }
 
+    case "drag": {
+      const user = userAddress();
+      const items = await detectYieldDrag(user);
+      console.log(renderYieldDrag(user, items));
+      break;
+    }
+
+    case "risk":
+    case "liq": {
+      const user = userAddress();
+      const result = await liquidationRisk(user);
+      console.log(renderLiquidationRisk(user, result));
+      break;
+    }
+
     default:
-      console.log("commands: discover | allocate | withdraw | position  (see SKILL.md)");
+      console.log("commands: discover | allocate | withdraw | position | drag | risk  (see SKILL.md)");
   }
 }
 

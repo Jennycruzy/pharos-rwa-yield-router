@@ -6,12 +6,14 @@ description: >-
   whenever the user wants to find, compare, or earn yield on tokenized
   real-world assets or stablecoins on Pharos — e.g. "what's the best RWA yield
   on Pharos?", "put my idle USDC to work", "supply into the highest-yielding
-  reserve", "where can I earn on Pharos?", "show me OpenFi rates", "withdraw my
-  USDC", or "how much am I earning?". The skill reads live per-reserve rates and
-  on-chain risk config, ranks reserves on a risk-adjusted basis (not just raw
-  APY), and supplies into the best ALLOCATABLE reserve. It also surfaces the
-  gated pAlpha institutional vault as a read-only benchmark. Trigger this for
-  any "earn / yield / supply / lend / where to put my money on Pharos" request.
+  reserve", "where can I earn on Pharos?", "show me OpenFi rates", "where am I
+  losing yield?", "how close am I to liquidation?", "withdraw my USDC", or "how
+  much am I earning?". The skill reads live per-reserve rates and on-chain risk
+  config, ranks reserves on a risk-adjusted basis (not just raw APY), detects
+  idle/lower-yield capital, monitors liquidation distance for borrows, and
+  supplies into the best ALLOCATABLE reserve. It also surfaces the gated pAlpha
+  institutional vault as a read-only benchmark. Trigger this for any "earn /
+  yield / supply / lend / where to put my money on Pharos" request.
 ---
 
 # Pharos RWA Yield Router
@@ -52,11 +54,26 @@ npx ts-node scripts/router-cli.ts withdraw --asset USDC --max
 npx ts-node scripts/router-cli.ts position
 ```
 
+**Yield drag — idle or lower-yield capital (read-only):**
+```
+npx ts-node scripts/router-cli.ts drag --address 0xYourWallet
+```
+With no `--address`, the command derives the wallet from `PRIVATE_KEY`.
+
+**Liquidation risk — borrow distance to HF=1 (read-only):**
+```
+npx ts-node scripts/router-cli.ts risk --address 0xYourWallet
+npx ts-node scripts/router-cli.ts liq --address 0xYourWallet
+```
+Uses OpenFi's own price oracle discovered through `ADDRESSES_PROVIDER()`.
+
 ## Translating natural language
 
 - "best RWA yield on Pharos" / "show me rates" -> `discover`
 - "put my idle USDC to work" / "earn the best yield, $50" -> `allocate --amount 50`
 - "supply 50 USDC specifically" -> `allocate --asset USDC --amount 50`
+- "where am I losing yield?" / "find idle capital" -> `drag`
+- "how close am I to liquidation?" / "borrow risk" -> `risk`
 - "pull my USDC out" -> `withdraw --asset USDC --max`
 - "how much am I earning?" -> `position`
 
@@ -71,6 +88,18 @@ reserves that are `isFrozen` or not `isActive`, or that pay a zero rate, are
 the reserve's liquidation threshold, so a high rate on weakly-configured
 collateral doesn't automatically win. The router will never deposit into the
 pAlpha benchmark — it's gated and shown for context only.
+
+## Intelligence Features
+
+`drag` reads ERC20 wallet balances and OpenFi supplied positions for configured
+reserves. It flags idle balances in allocatable markets and supplied capital
+that could move to a higher-APY reserve with equal-or-better risk-adjusted
+profile. Output is ranked by estimated annualized yield lost.
+
+`risk` reads each configured reserve's collateral, stable debt, variable debt,
+liquidation threshold, and OpenFi oracle price. It reports aggregate health
+factor and the collateral price drop buffer before HF reaches 1. If there are no
+borrows, it prints `no borrowed positions`; it does not invent prices.
 
 ## Safety
 
@@ -91,4 +120,9 @@ pAlpha benchmark — it's gated and shown for context only.
 
 Mainnet OpenFi pool (`0x30b2e141…`) and USDC (`0xC879…`) are pre-filled and
 were confirmed from a real supply transaction. The `get*Data` reads try the
-pool first and fall back to a provider address if you set one.
+pool first and fall back to the data provider discovered from the pool's
+addresses provider. On June 4, 2026, `discover` confirmed USDC at `1.65%` APY,
+`75%` LTV, `78%` liquidation threshold, and `allocatable`; the OpenFi oracle was
+confirmed at `0x878aF9E17C0168bBCdB4f33890Bf8CDE7592a6d1` with USDC priced at
+`99957102` using 8 decimals. Supply/withdraw writes still require a tiny funded
+wallet transaction before being described as proven.

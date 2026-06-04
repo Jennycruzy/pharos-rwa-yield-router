@@ -6,32 +6,46 @@
 // ---------------------------------------------------------------------------
 
 import { Contract, JsonRpcProvider } from "ethers";
-import { RPC_URL, POOL, PROVIDER, RAY, Reserve } from "./config";
-import { OPENFI_ABI } from "./abi";
+import { CHAIN_ID, RPC_URL, POOL, PROVIDER, RAY, Reserve } from "./config";
+import { ADDRESSES_PROVIDER_ABI, OPENFI_ABI } from "./abi";
 import { ZeroAddress } from "ethers";
 
-const provider = new JsonRpcProvider(RPC_URL);
+const provider = new JsonRpcProvider(RPC_URL, CHAIN_ID, { staticNetwork: true });
+
+export function rpcProvider(): JsonRpcProvider {
+  return provider;
+}
 
 let readAddrCache: string | null = null;
 
-async function readContract(): Promise<Contract> {
+async function readContract(probeAsset: string): Promise<Contract> {
   if (readAddrCache) return new Contract(readAddrCache, OPENFI_ABI, provider);
 
-  // Try the Pool first.
+  // Try the Pool first against the actual reserve being read. ZeroAddress may
+  // legitimately revert even when the Pool and ABI are correct.
   const pool = new Contract(POOL, OPENFI_ABI, provider);
   try {
-    // a harmless probe; if reads live here it won't revert
-    await pool.getReserveData.staticCall(
-      // any configured reserve works as a probe; caller passes real ones later
-      ZeroAddress
-    );
+    await Promise.all([
+      pool.getReserveData.staticCall(probeAsset),
+      pool.getReserveConfigurationData.staticCall(probeAsset),
+    ]);
     readAddrCache = POOL;
     return pool;
   } catch {
-    // fall back to provider if one is configured
     if (PROVIDER && PROVIDER !== ZeroAddress) {
       readAddrCache = PROVIDER;
       return new Contract(PROVIDER, OPENFI_ABI, provider);
+    }
+    try {
+      const addressesProvider = await pool.ADDRESSES_PROVIDER.staticCall();
+      const ap = new Contract(addressesProvider, ADDRESSES_PROVIDER_ABI, provider);
+      const dataProvider = (await ap.getPoolDataProvider.staticCall()) as string;
+      if (dataProvider && dataProvider !== ZeroAddress) {
+        readAddrCache = dataProvider;
+        return new Contract(dataProvider, OPENFI_ABI, provider);
+      }
+    } catch {
+      // No data provider discovered; let the pool call below surface the error.
     }
     // No provider set — assume Pool and let the real call surface the error.
     readAddrCache = POOL;
@@ -51,7 +65,7 @@ export interface ReserveSnapshot {
 }
 
 export async function snapshotReserve(reserve: Reserve): Promise<ReserveSnapshot> {
-  const c = await readContract();
+  const c = await readContract(reserve.address);
   try {
     const [data, cfg] = await Promise.all([
       c.getReserveData(reserve.address),
@@ -87,10 +101,14 @@ export async function snapshotReserve(reserve: Reserve): Promise<ReserveSnapshot
 }
 
 export async function getUserPosition(reserve: Reserve, user: string) {
-  const c = await readContract();
+  const c = await readContract(reserve.address);
   const d = await c.getUserReserveData(reserve.address, user);
   return {
     suppliedRaw: (d.currentBTokenBalance ?? d[0]) as bigint,
+    stableDebtRaw: (d.currentStableDebt ?? d[1]) as bigint,
+    variableDebtRaw: (d.currentVariableDebt ?? d[2]) as bigint,
+    totalDebtRaw: ((d.currentStableDebt ?? d[1]) as bigint) + ((d.currentVariableDebt ?? d[2]) as bigint),
+    usageAsCollateralEnabled: (d.usageAsCollateralEnabled ?? d[8]) as boolean,
     decimals: reserve.decimals,
   };
 }
