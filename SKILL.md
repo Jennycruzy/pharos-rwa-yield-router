@@ -124,5 +124,11 @@ pool first and fall back to the data provider discovered from the pool's
 addresses provider. On June 4, 2026, `discover` confirmed USDC at `1.65%` APY,
 `75%` LTV, `78%` liquidation threshold, and `allocatable`; the OpenFi oracle was
 confirmed at `0x878aF9E17C0168bBCdB4f33890Bf8CDE7592a6d1` with USDC priced at
-`99957102` using 8 decimals. Supply/withdraw writes still require a tiny funded
-wallet transaction before being described as proven.
+`99957102` using 8 decimals. The live write path was also verified on June 4,
+2026 using wallet `0x0Ac6bf160e208e67AF06d7F00c92AEfBbf089f95`:
+`allocate --asset USDC --amount 0.01` succeeded with tx
+`0x4caa4fdb21b9dbb1979da72eea63c8dc820fed1a38a97711a82cb914eb282773`, and
+`withdraw --asset USDC --max` succeeded with tx
+`0xa2f0710dbe30dd44ca6a5b2c386f2608cd70c888aa0a0214fab9f470a7d91164`. Final
+`position` returned no supplied balances across configured reserves; `drag`
+found `0.280771 USDC` idle; `risk` found no borrowed positions.

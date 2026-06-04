@@ -37,15 +37,19 @@ npx ts-node scripts/router-cli.ts withdraw --asset USDC --max
   `0x878aF9E17C0168bBCdB4f33890Bf8CDE7592a6d1`; `getAssetPrice(USDC)` returned
   `99957102` (8 decimals, about `$0.99957102`).
 
-**Still untested on-chain:** `allocate` and `withdraw` need a funded wallet and
-a tiny real transaction before they should be described as proven.
+**Confirmed live write path (June 4, 2026):**
+- Wallet used: `0x0Ac6bf160e208e67AF06d7F00c92AEfBbf089f95`.
+- `allocate --asset USDC --amount 0.01` succeeded:
+  `0x4caa4fdb21b9dbb1979da72eea63c8dc820fed1a38a97711a82cb914eb282773`.
+- `withdraw --asset USDC --max` succeeded:
+  `0xa2f0710dbe30dd44ca6a5b2c386f2608cd70c888aa0a0214fab9f470a7d91164`.
+- Final `position` read returned no supplied balances across configured reserves.
 
 **TODO to make it stronger (see below):**
 - Add more reserve token addresses in `scripts/config.ts` so the router
   actually compares across assets (USDC alone isn't much of a "router").
-- Add a real-wallet `drag` / `risk` run once `PRIVATE_KEY` or `--address` for
-  the user's wallet is available. The commands are live-read tested, but not
-  yet validated against the user's actual balances/borrows in this environment.
+- Add more reserve token addresses before demoing multi-asset comparisons; the
+  current verified mainnet reserve list contains only USDC.
 - Optional RPC override in `.env` if the default mainnet RPC isn't reachable.
 
 ## Widening the router (the single highest-impact edit)
@@ -74,6 +78,9 @@ risk-adjusted profile. `risk` uses the OpenFi price oracle and the protocol's
 own liquidation thresholds to report the aggregate collateral price drop buffer
 for borrowed positions. With no `--address`, both commands derive the wallet
 from `PRIVATE_KEY`.
+
+Live wallet check on June 4, 2026: `drag` found `0.280771 USDC` idle with an
+estimated `0.004633 USDC/year` yield drag; `risk` found no borrowed positions.
 
 ## Suggested demo (≈90s)
 

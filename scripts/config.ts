@@ -8,6 +8,22 @@
 // ---------------------------------------------------------------------------
 
 import { ZeroAddress } from "ethers";
+import { existsSync, readFileSync } from "fs";
+
+function loadDotEnv(): void {
+  if (!existsSync(".env")) return;
+  for (const line of readFileSync(".env", "utf8").split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    const eq = trimmed.indexOf("=");
+    if (eq === -1) continue;
+    const key = trimmed.slice(0, eq).trim();
+    const value = trimmed.slice(eq + 1).trim();
+    if (key && process.env[key] === undefined) process.env[key] = value;
+  }
+}
+
+loadDotEnv();
 
 // --- Network ----------------------------------------------------------------
 // Mainnet by default (chain 1672). Set PHAROS_NETWORK=testnet for 688688.
