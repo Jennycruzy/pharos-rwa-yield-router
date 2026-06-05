@@ -97,8 +97,9 @@ and allocation all use the configured live reserve list.
 Agents should install runtime dependencies with `npm install` if
 `node_modules/` is missing, then call
 `npx ts-node scripts/router-cli.ts discover` first for any exploratory yield
-request. Use write commands only after the user clearly asks to deposit or
-withdraw funds.
+request. If `discover` returns `read-error` for every configured reserve, rerun
+with network access before answering. Use write commands only after the user
+clearly asks to deposit or withdraw funds.
 
 Natural-language requests map to CLI actions like this:
 
@@ -113,7 +114,8 @@ Natural-language requests map to CLI actions like this:
 - "How much am I earning?" -> `position`
 
 Read-only checks accept `--address 0xYourWallet`; without `--address`, the CLI
-uses the wallet derived from `PRIVATE_KEY` in `.env`.
+uses the wallet derived from `PRIVATE_KEY` in `.env`. If `.env` is missing, the
+CLI creates it from `.env.example` and asks you to fill `PRIVATE_KEY`, then retry.
 
 ## Network
 

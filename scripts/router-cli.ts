@@ -13,6 +13,7 @@
 // ---------------------------------------------------------------------------
 
 import { JsonRpcProvider, Wallet } from "ethers";
+import { copyFileSync, existsSync } from "fs";
 import { assertConfigured, RPC_URL, RESERVES } from "./config";
 import { rankReserves, bestAllocatable, renderDiscovery } from "./router";
 import { supply, withdraw } from "./execute";
@@ -33,11 +34,25 @@ function flag(name: string): boolean {
   return process.argv.includes(`--${name}`);
 }
 
+function ensureEnvTemplate(): boolean {
+  if (existsSync(".env")) return false;
+  if (existsSync(".env.example")) {
+    copyFileSync(".env.example", ".env");
+  }
+  return existsSync(".env");
+}
+
 function userAddress(): string {
   const address = arg("address");
   if (address) return address;
   const pk = process.env.PRIVATE_KEY;
-  if (!pk) throw new Error("PRIVATE_KEY not set; pass --address for read-only checks");
+  if (!pk || pk === "your_wallet_private_key_here") {
+    const created = ensureEnvTemplate();
+    const hint = created
+      ? "Created .env from .env.example. Fill PRIVATE_KEY in .env, then retry."
+      : "Create .env from .env.example and set PRIVATE_KEY, then retry.";
+    throw new Error(`${hint} Or pass --address for read-only checks.`);
+  }
   return new Wallet(pk, new JsonRpcProvider(RPC_URL)).address;
 }
 
@@ -49,6 +64,19 @@ async function main(): Promise<void> {
     case "discover": {
       const rows = await rankReserves();
       console.log(renderDiscovery(rows));
+      const failures = rows.filter((r) => r.error);
+      if (failures.length === rows.length) {
+        console.error("\nerror: live reserve reads failed for every configured OpenFi reserve.");
+        console.error("This usually means the Pharos RPC is unreachable from the current sandbox; retry with network access.");
+        for (const r of failures) {
+          console.error(`  ${r.reserve.symbol}: ${r.error}`);
+        }
+        process.exit(1);
+      }
+      if (failures.length > 0) {
+        console.error("\nwarning: some reserve reads failed; ranking excludes read-error reserves.");
+        for (const r of failures) console.error(`  ${r.reserve.symbol}: ${r.error}`);
+      }
       const best = bestAllocatable(rows);
       if (best) console.log(`\nbest allocatable: ${best.reserve.symbol} @ ${best.apyPct.toFixed(2)}% APY`);
       break;

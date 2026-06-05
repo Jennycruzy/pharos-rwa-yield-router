@@ -37,7 +37,9 @@ npx ts-node scripts/router-cli.ts discover
 ```
 Prints every OpenFi reserve with APY, LTV, liquidation threshold, status
 (allocatable / zero-rate / frozen / inactive), and a risk-adjusted score, plus
-the pAlpha 14% benchmark row marked gated / not allocatable.
+the pAlpha 14% benchmark row marked gated / not allocatable. If every live
+reserve read returns `read-error`, treat that as an RPC/network failure, rerun
+with network access, and do not answer from the pAlpha benchmark alone.
 
 **Allocate — supply into the best (or a named) reserve:**
 ```
@@ -61,22 +63,27 @@ npx ts-node scripts/router-cli.ts position
 ```
 npx ts-node scripts/router-cli.ts drag --address 0xYourWallet
 ```
-With no `--address`, the command derives the wallet from `PRIVATE_KEY`.
+With no `--address`, the command derives the wallet from `PRIVATE_KEY`. If
+`PRIVATE_KEY` is missing, the CLI creates `.env` from `.env.example` when
+possible, then asks the user to fill `PRIVATE_KEY` and retry.
 
 **Liquidation risk — borrow distance to HF=1 (read-only):**
 ```
 npx ts-node scripts/router-cli.ts risk --address 0xYourWallet
 npx ts-node scripts/router-cli.ts liq --address 0xYourWallet
 ```
-Uses OpenFi's own price oracle discovered through `ADDRESSES_PROVIDER()`.
+Uses OpenFi's own price oracle discovered through `ADDRESSES_PROVIDER()`. If
+`PRIVATE_KEY` is missing and no `--address` is supplied, the CLI creates `.env`
+from `.env.example` when possible, then asks the user to fill `PRIVATE_KEY` and
+retry.
 
 ## Translating natural language
 
 - "best RWA yield on Pharos" / "show me rates" -> `discover`
 - "put my idle USDC to work" / "earn the best yield, $50" -> `allocate --amount 50`
 - "supply 50 USDC specifically" -> `allocate --asset USDC --amount 50`
-- "where am I losing yield?" / "find idle capital" -> `drag`
-- "how close am I to liquidation?" / "borrow risk" -> `risk`
+- "where am I losing yield?" / "find idle capital" -> `drag`; if `PRIVATE_KEY` is missing, let the CLI create `.env`, tell the user to fill it, then retry after they confirm
+- "how close am I to liquidation?" / "borrow risk" -> `risk`; same `.env` flow if `PRIVATE_KEY` is missing
 - "pull my USDC out" -> `withdraw --asset USDC --max`
 - "how much am I earning?" -> `position`
 
