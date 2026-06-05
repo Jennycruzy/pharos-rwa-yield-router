@@ -26,10 +26,12 @@ they can.
 
 ## Commands
 
-All actions go through `scripts/router-cli.ts` (`npx ts-node`). Before the
-first CLI execution in a fresh install, check for `node_modules/`; if it is
-missing, run `npm install` once so `npx` uses the local `ts-node` instead of
-stalling on package resolution.
+All actions go through `scripts/router-cli.ts` (`npx ts-node`). Every CLI
+command reads Pharos/OpenFi RPC, so in a sandboxed or restricted-network agent
+environment, request network access before running the command instead of trying
+a sandboxed run first. Before the first CLI execution in a fresh install, check
+for `node_modules/`; if it is missing, run `npm install` once so `npx` uses the
+local `ts-node` instead of stalling on package resolution.
 
 **Discover — the ranked landscape (read-only, no funds):**
 ```
@@ -37,9 +39,10 @@ npx ts-node scripts/router-cli.ts discover
 ```
 Prints every OpenFi reserve with APY, LTV, liquidation threshold, status
 (allocatable / zero-rate / frozen / inactive), and a risk-adjusted score, plus
-the pAlpha 14% benchmark row marked gated / not allocatable. If every live
-reserve read returns `read-error`, treat that as an RPC/network failure, rerun
-with network access, and do not answer from the pAlpha benchmark alone.
+the pAlpha 14% benchmark row marked gated / not allocatable. Because this
+command requires Pharos RPC access, run it with network access in restricted
+environments. If every live reserve read returns `read-error`, treat that as an
+RPC/network failure and do not answer from the pAlpha benchmark alone.
 
 **Allocate — supply into the best (or a named) reserve:**
 ```
@@ -126,7 +129,7 @@ verifying the CLI locally.
 1. `npm install` if `node_modules/` is missing
 2. `cp .env.example .env`, set `PRIVATE_KEY`. Mainnet is the default
    (`PHAROS_NETWORK=mainnet`); set `testnet` for chain 688688.
-3. Confirm the ABI with one read before trusting writes:
+3. Confirm the ABI with one network-enabled read before trusting writes:
    `npx ts-node scripts/router-cli.ts discover` — if USDC shows a sane APY and
    status, the pool address, ABI, and rate math are all correct.
 

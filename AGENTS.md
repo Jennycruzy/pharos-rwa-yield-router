@@ -28,16 +28,21 @@ This repository is a Codex/agent skill package for the Pharos RWA Yield Router.
 - Before executing any `npx ts-node scripts/router-cli.ts ...` command, check
   whether `node_modules/` exists. If it is missing, run `npm install` first;
   otherwise `npx` may stall while resolving `ts-node` during the demo.
+- All router CLI commands require live Pharos/OpenFi RPC access. In Codex or any
+  sandboxed agent environment, request network/escalated access before running
+  `npx ts-node scripts/router-cli.ts ...`; do not run it once in the restricted
+  sandbox just to observe DNS/RPC failure.
 
 ## Runtime Behavior
 
 - Before the first CLI run, ensure runtime dependencies are installed with
   `npm install` if `node_modules/` is missing.
-- Run `npx ts-node scripts/router-cli.ts discover` before any write action.
+- Run `npx ts-node scripts/router-cli.ts discover` with network access before
+  any write action.
 - Use read-only commands for exploration: `discover`, `drag`, `risk`, `position`.
 - If `discover` returns `read-error` for every reserve, treat it as an RPC or
-  sandbox network failure, rerun with network access, and do not answer from
-  pAlpha or historical docs alone.
+  sandbox network failure and do not answer from pAlpha or historical docs
+  alone.
 - Use write commands only after the user clearly asks to deposit or withdraw:
   `allocate`, `withdraw`.
 - Never invent APY, oracle prices, tx hashes, or verification status.

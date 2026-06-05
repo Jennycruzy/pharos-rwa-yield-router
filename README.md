@@ -96,10 +96,12 @@ and allocation all use the configured live reserve list.
 
 Agents should install runtime dependencies with `npm install` if
 `node_modules/` is missing, then call
-`npx ts-node scripts/router-cli.ts discover` first for any exploratory yield
-request. If `discover` returns `read-error` for every configured reserve, rerun
-with network access before answering. Use write commands only after the user
-clearly asks to deposit or withdraw funds.
+`npx ts-node scripts/router-cli.ts discover` with network access first for any
+exploratory yield request. All router CLI commands require live Pharos/OpenFi
+RPC, so sandboxed agents should request network access before running them. If
+`discover` returns `read-error` for every configured reserve, treat that as an
+RPC/network failure and do not answer from pAlpha or historical docs alone. Use
+write commands only after the user clearly asks to deposit or withdraw funds.
 
 Natural-language requests map to CLI actions like this:
 
@@ -120,7 +122,9 @@ CLI creates it from `.env.example` and asks you to fill `PRIVATE_KEY`, then retr
 ## Network
 
 Mainnet (chain 1672) by default. `PHAROS_NETWORK=testnet` switches to 688688
-and uses the testnet pool/provider/USDC from the original OpenFi doc.
+and uses the testnet pool/provider/USDC from the original OpenFi doc. The CLI
+must be allowed to reach the configured RPC URL; in restricted agent sandboxes,
+run CLI commands with network access up front.
 
 ## Read-only intelligence
 
