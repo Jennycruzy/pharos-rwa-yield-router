@@ -22,9 +22,14 @@ This repository is a Codex/agent skill package for the Pharos RWA Yield Router.
 - Do not create or commit `.env`; `.env` is intentionally ignored.
 - Install runtime dependencies only when the user asks to execute or verify the
   CLI locally.
+- Before executing any `npx ts-node scripts/router-cli.ts ...` command, check
+  whether `node_modules/` exists. If it is missing, run `npm install` first;
+  otherwise `npx` may stall while resolving `ts-node` during the demo.
 
 ## Runtime Behavior
 
+- Before the first CLI run, ensure runtime dependencies are installed with
+  `npm install` if `node_modules/` is missing.
 - Run `npx ts-node scripts/router-cli.ts discover` before any write action.
 - Use read-only commands for exploration: `discover`, `drag`, `risk`, `position`.
 - Use write commands only after the user clearly asks to deposit or withdraw:

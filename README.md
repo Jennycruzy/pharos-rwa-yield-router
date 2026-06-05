@@ -49,7 +49,9 @@ rm -rf "$DEST/.git"
 
 Runtime dependency installation is separate from skill installation. The CLI
 uses `ethers`, `ts-node`, and `typescript`; install those only in a working copy
-when executing `scripts/router-cli.ts`.
+when executing `scripts/router-cli.ts`. Before the first CLI run, check for
+`node_modules/` and run `npm install` if it is missing so `npx` uses the local
+`ts-node` instead of stalling on package resolution.
 
 ## Confirmed Status
 
@@ -89,9 +91,11 @@ and allocation all use the configured live reserve list.
 
 ## Agent Usage
 
-Agents should call `npx ts-node scripts/router-cli.ts discover` first for any
-exploratory yield request. Use write commands only after the user clearly asks
-to deposit or withdraw funds.
+Agents should install runtime dependencies with `npm install` if
+`node_modules/` is missing, then call
+`npx ts-node scripts/router-cli.ts discover` first for any exploratory yield
+request. Use write commands only after the user clearly asks to deposit or
+withdraw funds.
 
 Natural-language requests map to CLI actions like this:
 

@@ -26,7 +26,10 @@ they can.
 
 ## Commands
 
-All actions go through `scripts/router-cli.ts` (`npx ts-node`).
+All actions go through `scripts/router-cli.ts` (`npx ts-node`). Before the
+first CLI execution in a fresh install, check for `node_modules/`; if it is
+missing, run `npm install` once so `npx` uses the local `ts-node` instead of
+stalling on package resolution.
 
 **Discover — the ranked landscape (read-only, no funds):**
 ```
@@ -110,7 +113,10 @@ borrows, it prints `no borrowed positions`; it does not invent prices.
 
 ## Setup
 
-1. `npm install`
+Skill installation is file-only. Runtime setup is needed only when executing or
+verifying the CLI locally.
+
+1. `npm install` if `node_modules/` is missing
 2. `cp .env.example .env`, set `PRIVATE_KEY`. Mainnet is the default
    (`PHAROS_NETWORK=mainnet`); set `testnet` for chain 688688.
 3. Confirm the ABI with one read before trusting writes:
