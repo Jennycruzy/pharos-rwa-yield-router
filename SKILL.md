@@ -126,15 +126,10 @@ verifying the CLI locally.
 Mainnet OpenFi pool (`0x30b2e141…`) and USDC (`0xC879…`) are pre-filled and
 were confirmed from a real supply transaction. The `get*Data` reads try the
 pool first and fall back to the data provider discovered from the pool's
-addresses provider. On June 4, 2026, `discover` confirmed USDC at `6.00%` APY,
-`75%` LTV, `78%` liquidation threshold, and `allocatable`; WETH was confirmed
-active/unfrozen but `zero-rate`; the OpenFi oracle was
-confirmed at `0x878aF9E17C0168bBCdB4f33890Bf8CDE7592a6d1` with USDC priced at
-`99957102` using 8 decimals. The live write path was also verified on June 4,
-2026 using wallet `0x0Ac6bf160e208e67AF06d7F00c92AEfBbf089f95`:
-`allocate --asset USDC --amount 0.01` succeeded with tx
-`0x13ddf2dd42a0b7fe8534aec8e0e413f425785173d0a47d79bba5ae904eb04c78`, and
-`withdraw --asset USDC --max` succeeded with tx
-`0x3d7a9966c3c955153e60d28bff2cd01b546afd3540cdbbd2345fe48aa73fcb23`. Final
-`position` returned no supplied balances across configured reserves; `drag`
-found `0.280771 USDC` idle; `risk` found no borrowed positions.
+addresses provider.
+
+Do not answer from historical documentation values. For current APY, reserve
+status, oracle prices, tx hashes, position state, yield drag, or liquidation
+risk, run the matching CLI command and report only what the live command returns.
+Historical verification details and tx hashes are kept in `README.md` for audit
+context only.

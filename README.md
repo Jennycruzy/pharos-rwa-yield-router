@@ -53,13 +53,16 @@ when executing `scripts/router-cli.ts`. Before the first CLI run, check for
 `node_modules/` and run `npm install` if it is missing so `npx` uses the local
 `ts-node` instead of stalling on package resolution.
 
-## Confirmed Status
+## Historical Verification
+
+These entries prove the wiring was verified previously; they are not current yield data. Run `discover`, `drag`, `risk`, `position`, `allocate`, or `withdraw` for the present state.
+
 
 **Confirmed from a real mainnet supply transaction:**
 - OpenFi pool / spender: `0x30b2e1411fd2ed9f1f46f59497e2186ce5be3b26`
 - USDC token: `0xC879C018dB60520F4355C26eD1a6D572cdAC1815`
 
-**Confirmed live read path (June 4, 2026):**
+**Historical live read path verification (June 4, 2026):**
 - `discover` on mainnet returns USDC at `6.00%` APY, `75%` LTV, `78%`
   liquidation threshold, `allocatable`; WETH is active/unfrozen but `zero-rate`.
 - Pool `ADDRESSES_PROVIDER()` returns `0x3078361290234F1269034e6f9aF90A7512159fb1`.
@@ -69,7 +72,7 @@ when executing `scripts/router-cli.ts`. Before the first CLI run, check for
   `0x878aF9E17C0168bBCdB4f33890Bf8CDE7592a6d1`; `getAssetPrice(USDC)` returned
   `99957102` (8 decimals, about `$0.99957102`).
 
-**Confirmed live write path (June 4, 2026):**
+**Historical live write path verification (June 4, 2026):**
 - Wallet used: `0x0Ac6bf160e208e67AF06d7F00c92AEfBbf089f95`.
 - `allocate --asset USDC --amount 0.01` succeeded:
   `0x13ddf2dd42a0b7fe8534aec8e0e413f425785173d0a47d79bba5ae904eb04c78`.
@@ -77,7 +80,7 @@ when executing `scripts/router-cli.ts`. Before the first CLI run, check for
   `0x3d7a9966c3c955153e60d28bff2cd01b546afd3540cdbbd2345fe48aa73fcb23`.
 - Final `position` read returned no supplied balances across configured reserves.
 
-**Confirmed live reserves (June 4, 2026):**
+**Historical reserve verification (June 4, 2026):**
 - USDC: `0xC879C018dB60520F4355C26eD1a6D572cdAC1815`, 6 decimals,
   active/unfrozen, allocatable.
 - WETH: `0x1f4b7011Ee3d53969bb67F59428a9ec0477856E9`, 18 decimals,
