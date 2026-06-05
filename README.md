@@ -12,7 +12,7 @@ its work, rather than dumping funds into one hardcoded market.
 
 ```bash
 npm install
-cp .env.example .env          # set PRIVATE_KEY; mainnet is default
+cp .env.example .env          # set PRIVATE_KEY before wallet/write commands
 npx ts-node scripts/router-cli.ts discover     # read-only; confirms wiring
 npx ts-node scripts/router-cli.ts drag --address 0xYourWallet
 npx ts-node scripts/router-cli.ts risk --address 0xYourWallet
@@ -20,6 +20,56 @@ npx ts-node scripts/router-cli.ts allocate --amount 50
 npx ts-node scripts/router-cli.ts position
 npx ts-node scripts/router-cli.ts withdraw --asset USDC --max
 ```
+
+`discover` does not need a private key. `position`, `drag`, and `risk` can run
+read-only with `--address`; without `--address`, they derive the wallet from
+`PRIVATE_KEY`. `allocate` and `withdraw` always require `PRIVATE_KEY`.
+
+## Local Workspace Setup
+
+This repository is a TypeScript CLI/agent-skill package. It has no separate
+frontend, server, database, or generated build artifact. The runtime entry point
+is `scripts/router-cli.ts`.
+
+Prerequisites:
+
+- Node.js 20+ recommended.
+- Network access to Pharos RPC (`https://rpc.pharos.xyz` by default).
+- A funded Pharos wallet only for write commands.
+
+Install and validate:
+
+```bash
+npm install
+npx tsc --noEmit
+npx ts-node scripts/router-cli.ts discover
+```
+
+`package.json` intentionally has no npm scripts; use `npx tsc --noEmit` for the
+TypeScript build check and `npx ts-node scripts/router-cli.ts ...` for runtime
+commands.
+
+Environment variables are loaded from `.env` if present:
+
+```bash
+PRIVATE_KEY=your_wallet_private_key_here
+PHAROS_NETWORK=mainnet
+RPC_URL=https://rpc.pharos.xyz
+```
+
+`PHAROS_NETWORK=testnet` switches to chain `688688` and the configured testnet
+OpenFi pool/provider/USDC. `RPC_URL` can override either network's default RPC.
+
+## Repository Layout
+
+- `SKILL.md` — agent-facing skill instructions and command mapping.
+- `scripts/router-cli.ts` — CLI entry point.
+- `scripts/config.ts` — network, reserve, OpenFi, and benchmark config.
+- `scripts/reader.ts` — live reserve, user-position, and data-provider reads.
+- `scripts/router.ts` — risk-adjusted reserve ranking.
+- `scripts/execute.ts` — approve, supply, and withdraw execution.
+- `scripts/analytics.ts` — yield-drag and liquidation-risk analysis.
+- `scripts/prices.ts` / `scripts/abi.ts` — oracle discovery and contract ABIs.
 
 ## Skill Installation
 
@@ -52,6 +102,41 @@ uses `ethers`, `ts-node`, and `typescript`; install those only in a working copy
 when executing `scripts/router-cli.ts`. Before the first CLI run, check for
 `node_modules/` and run `npm install` if it is missing so `npx` uses the local
 `ts-node` instead of stalling on package resolution.
+
+## Workspace Pull Without Clone
+
+To materialize this repository in a workspace without running `git clone`, use
+an empty target directory, initialize git, add the remote, fetch, then check out
+the remote branch:
+
+```bash
+mkdir -p pharos-rwa-yield-router
+cd pharos-rwa-yield-router
+git init
+git remote add origin https://github.com/Jennycruzy/pharos-rwa-yield-router.git
+git fetch origin
+git checkout -B main origin/main
+```
+
+After that, `git pull` updates the same workspace from `origin/main`.
+
+## Current Build Verification
+
+Verified locally on June 5, 2026:
+
+```bash
+npm install
+npx tsc --noEmit
+npx ts-node scripts/router-cli.ts discover
+```
+
+The TypeScript check completed with no errors. The live `discover` command
+returned USDC as allocatable at `6.00%` APY, WETH as `zero-rate`, and pAlpha as
+`gated / not allocatable`; best allocatable reserve was USDC.
+
+`npm install` completed successfully and reported two moderate npm audit
+findings in the dependency tree. Review with `npm audit` before production use
+or before changing dependency versions.
 
 ## Historical Verification
 
