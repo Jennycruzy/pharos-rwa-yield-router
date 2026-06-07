@@ -1,257 +1,95 @@
-# Pharos Yield Compass
+# Pharos RWA Yield Router
 
-**Compares Pharos lending yields and routes into the best, while mapping them
-honestly against real-world-asset (RWA) vault yields.**
+Discovers live RWA yields on Pharos (OpenFi lending), ranks them **risk-adjusted**
+using on-chain liquidation config, and supplies into the best *accessible*
+reserve. Surfaces the gated pAlpha institutional vault as a read-only benchmark
+so the user sees what they can't reach versus what they can.
 
-This skill does two clearly-separated things and is honest about the difference:
-
-1. **Routes across lending markets.** It compares every reserve on the
-   permissionless, Aave-style lending venues (OpenFi, ZonaLend), ranks them
-   *risk-adjusted* on on-chain base APY, and supplies into the best allocatable
-   one — with a real on-chain transaction.
-2. **Benchmarks and (where confirmed) allocates RWA vaults.** It surfaces
-   real-world-income vaults — the **Tulipa** multi-RWA credit vault (a confirmed
-   allocatable deposit) and the gated **pAlpha** treasuries vault (a read-only
-   benchmark) — in their own section, never blending them with lending.
-
-## The distinction that matters (read this first)
-
-There are two different sources of yield on Pharos. Treating them as the same is
-wrong, and the whole identity of this skill is keeping them apart:
-
-| | Lending yield | RWA-vault yield |
-|---|---|---|
-| **Source** | A crypto borrower pays interest | Real-world-asset payouts |
-| **Shape** | Aave-style market (LTV, oracle, health factor) | ERC-4626 / ERC-7540 vault |
-| **Liquidity** | Permissionless, instant in **and** out | Deposit may be open while **redemption is gated/term-locked** |
-| **In this skill** | OpenFi, ZonaLend — ranked & allocatable | Tulipa (allocatable deposit), pAlpha (gated benchmark) |
-| **Action** | `supply` / `withdraw` | a vault `deposit` (a *different* action) |
-
-`discover` renders these as two labeled sections. Ranking and "best allocatable"
-apply **within the lending section only**.
+This is a router, not a depositor: the agent compares every reserve and shows
+its work, rather than dumping funds into one hardcoded market.
 
 ## Quick start
 
 ```bash
 npm install
-cp .env.example .env          # set PRIVATE_KEY before any write command
-npx ts-node scripts/router-cli.ts discover                      # read-only; two sections
-npx ts-node scripts/router-cli.ts position --address 0xYourWallet
-npx ts-node scripts/router-cli.ts allocate --amount 50          # best lending market
+cp .env.example .env          # set PRIVATE_KEY before wallet/write commands
+npx ts-node scripts/router-cli.ts discover     # read-only; confirms wiring
+npx ts-node scripts/router-cli.ts drag --address 0xYourWallet
+npx ts-node scripts/router-cli.ts risk --address 0xYourWallet
+npx ts-node scripts/router-cli.ts allocate --amount 50
+npx ts-node scripts/router-cli.ts position
 npx ts-node scripts/router-cli.ts withdraw --asset USDC --max
 ```
 
-`discover` needs no private key. `position`, `drag`, and `risk` run read-only
-with `--address`; without it they derive the wallet from `PRIVATE_KEY`.
-`allocate` and `withdraw` always require `PRIVATE_KEY`.
+`discover` does not need a private key. `position`, `drag`, and `risk` can run
+read-only with `--address`; without `--address`, they derive the wallet from
+`PRIVATE_KEY`. `allocate` and `withdraw` always require `PRIVATE_KEY`.
 
-## Commands
+## Local Workspace Setup
 
-| Command | What it does |
-|---|---|
-| `discover` | Two-category landscape: LENDING (ranked) + RWA-VAULT. |
-| `allocate --amount N` | Supply into the best allocatable lending market. |
-| `allocate --asset USDC --amount N` | Best lending venue for that asset. |
-| `allocate --venue zonalend --asset USDC --amount N` | Supply a named lending venue. |
-| `allocate --venue tulipa --amount N` | **Deposit** into the Tulipa RWA vault (explicit; prints an RWA notice). |
-| `withdraw --asset USDC --max` | Withdraw from a lending venue (default OpenFi). |
-| `withdraw --venue zonalend --asset USDC --amount N` | Withdraw from a named lending venue. |
-| `position [--address 0x..]` | Supplied lending balances + RWA-vault holdings (with value). |
-| `drag [--address 0x..]` | Idle / lower-yield capital (OpenFi). |
-| `risk [--address 0x..]` | Borrow distance to liquidation HF=1 (OpenFi oracle). |
+This repository is a TypeScript CLI/agent-skill package. It has no separate
+frontend, server, database, or generated build artifact. The runtime entry point
+is `scripts/router-cli.ts`.
 
-There is **no** `withdraw --venue tulipa`: Tulipa redemption is term-locked, and
-the CLI says so instead of implying liquidity the vault does not grant.
+Prerequisites:
 
-## Confirmed addresses (mainnet, chain 1672)
+- Node.js 20+ recommended.
+- Network access to Pharos RPC (`https://rpc.pharos.xyz` by default).
+- A funded Pharos wallet only for write commands.
 
-| Venue | Kind | Address | What it is |
-|---|---|---|---|
-| OpenFi | lending | `0x30b2e1411fd2ed9f1f46f59497e2186ce5be3b26` | Pool / spender (supply/withdraw). |
-| OpenFi USDC | token | `0xC879C018dB60520F4355C26eD1a6D572cdAC1815` | USDC, 6 decimals. |
-| OpenFi oracle | oracle | `0x878aF9E17C0168bBCdB4f33890Bf8CDE7592a6d1` | 8-decimal price oracle (via `ADDRESSES_PROVIDER().getPriceOracle()`). |
-| ZonaLend | lending | `0xda464e68208a3083eb65fe5c522a72aed1c1372a` | Aave-style pool (`getReservesList()` = USDC, WETH, WPROS). |
-| ZonaLend data provider | reads | `0xA91424C666193C2b2fb684E25dEadf03B333f49A` | Holds `getReserveConfigurationData` (pool reverts on it). |
-| ZonaLend oracle | oracle | `0x6bEDfCa244f29dD916fe7c50e1469C6188B873f9` | 8-decimal price oracle. |
-| ZonaLend WPROS | token | `0x52C48d4213107b20bC583832b0d951FB9CA8F0B0` | WPROS reserve, 18 decimals. |
-| Tulipa vault | rwa-vault | `0xbae9272f71db2dc9d053e3c6c4840df65ae6aec5` | ERC-4626 vault + `tulPRWA` share token; `asset()` = USDC. |
-
-USDC (`0xC879…`) is the same token on OpenFi, ZonaLend, and Tulipa.
-
-## APY policy: base vs incentivized
-
-ZonaLend advertises a **~210% "total net APY"** for USDC. That is base lending
-rate **plus** points/token incentives, and it decays. This skill distinguishes:
-
-- **baseApy** — the protocol's on-chain `liquidityRate` (ray → APY). Sustainable,
-  verifiable. **This is the ranked/routed number.** At build time: OpenFi USDC
-  ≈ 6%, ZonaLend USDC ≈ 4%, ZonaLend WPROS ≈ 3%.
-- **incentive / total APY** — only shown if a verifiable on-chain source exists.
-  ZonaLend's incentive APY is **not** readable on-chain, so the ~210% headline is
-  surfaced **only** as a labeled note: *"advertised total ~210% incl. incentives
-  (NOT on-chain verified)."* It is never ranked on and never routed on.
-
-## Tulipa: the decoded deposit interface
-
-Tulipa is a **confirmed allocatable** RWA vault. The interface was decoded from a
-real, settled user deposit (not assumed):
-
-- **Deposit tx** `0x0a6cfec5171f068ff113d8b03f265a74270e64dc91226fef3a8a4ec3a2f9b19d`
-  called the vault directly with selector **`0x50921b23`** =
-  `depositWithPermit(uint256 assets, address receiver, uint256 deadline, uint8 v, bytes32 r, bytes32 s)`
-  (it deposited `100000` = 0.1 USDC; the `v/r/s` is an EIP-2612 USDC permit, so
-  approval + deposit happened in one tx — confirmed by the USDC `Approval` +
-  `Transfer` logs and the share-mint log).
-- **The adapter wires this EXACT method.** It builds an EIP-2612 USDC permit
-  (owner = wallet, spender = vault, value = assets; the EIP-712 domain is
-  self-checked against the token's `DOMAIN_SEPARATOR` — USDC `name` "USDC",
-  `version` "2"), pre-flights the call with `staticCall`, then sends
-  `depositWithPermit(assets, receiver, deadline, v, r, s)` — no separate approve.
-  Re-confirmed live: a 0.01 USDC deposit through the adapter used selector
-  `0x50921b23` →
-  `0x056966127e677d23f699f8695e947058b3ef70f909d6818e19b97d796573ad42`. (The
-  plain ERC-4626 `deposit(assets,receiver)` `0x6e553f65` also exists and is kept
-  in the ABI, but the permit method is the one used.)
-- **Read side (verified):** `asset()` = USDC, `symbol()` = `tulPRWA`,
-  `decimals()` = 6, `convertToAssets(shares)` and `previewRedeem(shares)` resolve
-  (1:1 at build time), `balanceOf(user)` reports shares. `position` reports the
-  user's Tulipa shares and current USDC value from `convertToAssets`.
-
-### Redemption: term-locked
-
-`maxRedeem(user)` reports the **full** share balance, **yet** both
-`redeem(shares, receiver, owner)` and `withdraw(assets, receiver, owner)` revert
-on-chain with custom error **`0xa339e0ec`**. That is a term-lock/gate, not a
-balance problem. So the skill wires **deposit + position-read only** and does
-**not** offer instant withdraw for Tulipa. Funds remain in the vault until its
-redemption window opens.
-
-## Status: tested on-chain vs not
-
-Verified **live on mainnet (chain 1672) on 2026-06-07** with `npx ts-node
-scripts/router-cli.ts ...` against `https://rpc.pharos.xyz`:
-
-- ✅ `npx tsc --noEmit` clean.
-- ✅ **OpenFi unchanged (regression):** with `ENABLE_ZONA=false
-  ENABLE_TULIPA=false`, `discover` returns USDC `6.00%` base APY, LTV `75`, liq
-  threshold `78`, `allocatable`, score `4.68`; WETH `zero-rate`; best allocatable
-  = OpenFi USDC. Identical to the pre-change skill.
-- ✅ **ZonaLend (reads):** `discover` shows USDC `4.00%` (LTV 60 / liqThr 70) and
-  WPROS `3.00%` (LTV 50 / liqThr 65), both `allocatable`, with the 210%
-  advertised note on USDC. Config resolved from the Zona data provider; oracle
-  `getAssetPrice(USDC)` ≈ `99971071`.
-- ✅ **Tulipa (reads):** appears in the RWA-VAULT section as ALLOCATABLE;
-  `position` reports the wallet's `tulPRWA` shares and current USDC value via
-  `convertToAssets`; redemption confirmed term-locked (custom error
-  `0xa339e0ec`).
-- ✅ **Guards:** `withdraw --venue tulipa` is refused with a term-locked message;
-  `allocate --venue tulipa` prints the RWA notice before any state change;
-  default `allocate` routes to OpenFi USDC @ 6%.
-- ✅ **All write paths executed live** (wallet
-  `0x0Ac6bf160e208e67AF06d7F00c92AEfBbf089f95`, tiny amounts):
-  - Tulipa `depositWithPermit` 0.01 USDC (selector `0x50921b23`) →
-    `0x056966127e677d23f699f8695e947058b3ef70f909d6818e19b97d796573ad42`
-  - OpenFi `allocate` 0.01 USDC →
-    `0xec4690ac76ac1f297c814f13c86b033486ab3bec6bc7e369549bc96137ecf9e2`;
-    `withdraw --max` →
-    `0x1b399eb120de97a674b148d02421c8c6e5799ef1c11c24e61f903e5bea1f9fb1`
-  - ZonaLend `allocate` 0.01 USDC →
-    `0x171ab974be8f400ffcae98598e65709cc66d60db2e2aeff87e99a5f552065f0f`;
-    `withdraw --max` →
-    `0xf7d6ad719cd989195ad11aa261d4a649b5ba651428b9da0379e66ebaaab85354`
-
-### Historical OpenFi verification (audit context, not current data)
-
-These prove the OpenFi wiring was verified previously; run the CLI for current
-state.
-
-- Confirmed from a real mainnet supply tx: OpenFi pool `0x30b2e141…`, USDC
-  `0xC879…`.
-- Read path (June 4, 2026): OpenFi USDC `6.00%` / LTV 75 / liqThr 78
-  allocatable; WETH active but zero-rate. `ADDRESSES_PROVIDER()` =
-  `0x3078361290234F1269034e6f9aF90A7512159fb1`; `getPoolDataProvider()` =
-  `0x3EF4724f0f2fabfA0ba96AfC711D64e6BE3367Fb`; `getPriceOracle()` =
-  `0x878aF9E17C0168bBCdB4f33890Bf8CDE7592a6d1`; `getAssetPrice(USDC)` =
-  `99957102`.
-- Write path (June 4, 2026), wallet `0x0Ac6bf160e208e67AF06d7F00c92AEfBbf089f95`:
-  `allocate --asset USDC --amount 0.01` →
-  `0x13ddf2dd42a0b7fe8534aec8e0e413f425785173d0a47d79bba5ae904eb04c78`;
-  `withdraw --asset USDC --max` →
-  `0x3d7a9966c3c955153e60d28bff2cd01b546afd3540cdbbd2345fe48aa73fcb23`.
-
-## Network & setup
-
-- Mainnet (chain 1672) by default; RPC `https://rpc.pharos.xyz`.
-  `PHAROS_NETWORK=testnet` switches to 688688 and the testnet OpenFi config.
-- `.env`:
-  ```bash
-  PRIVATE_KEY=your_wallet_private_key_here
-  PHAROS_NETWORK=mainnet
-  RPC_URL=https://rpc.pharos.xyz
-  ```
-- **Venue toggles:** `ENABLE_ZONA=false` and/or `ENABLE_TULIPA=false` disable
-  those venues instantly (discovery/position revert to OpenFi-only). Both default
-  on for mainnet; both are force-off on testnet (no testnet deployments wired).
-- All CLI commands need live RPC; in restricted sandboxes, run with network
-  access up front. If every lending reserve read returns `read-error`, treat it
-  as an RPC failure — do not answer from a benchmark or historical docs.
-
-## Repository layout
-
-- `SKILL.md` — agent-facing skill instructions and command mapping.
-- `scripts/router-cli.ts` — CLI entry point (venue-aware).
-- `scripts/config.ts` — network, OpenFi/Zona/Tulipa addresses, toggles, benchmark.
-- `scripts/abi.ts` — Aave-style, ERC-20, oracle, and ERC-4626 ABIs.
-- `scripts/reader.ts` / `scripts/router.ts` — OpenFi reserve reads + ranking (unchanged core).
-- `scripts/execute.ts` — OpenFi approve/supply/withdraw (unchanged core).
-- `scripts/analytics.ts` / `scripts/prices.ts` — yield-drag, liquidation risk, oracle.
-- `scripts/venues/` — the adapter layer:
-  - `types.ts` — `Venue` interface, `YieldKind`, risk score.
-  - `openfi.ts` — wraps the verified OpenFi path unchanged.
-  - `aave.ts` — generic Aave-style venue factory (used by ZonaLend).
-  - `zonalend.ts`, `tulipa.ts` — the new venues.
-  - `index.ts` — registry + `ENABLE_*` toggles.
-  - `discovery.ts` — two-category ranking + rendering.
-
-## Roadmap / benchmarks (tracked, not allocatable)
-
-- **pAlpha** — gated institutional RWA vault (~14% APY via AquaFlux/Ember). Shown
-  in the RWA-VAULT section as a benchmark; the router never deposits into it.
-- **Morpho on Pharos** — official lending provider but institutional-vault-first,
-  phased, isolated-market shape. Benchmark/roadmap only.
-- **Top Nod rcPC** — term-locked credit vault (8% weekly / 15% 6-month).
-  Benchmark; lockup/gating to be verified before any allocation.
-- **LendAI** — no mainnet evidence (stale testnet). Out.
-- **Pharos.money / PUSD** — CDP/stablecoin, a different primitive. Not a router
-  venue.
-
-(Tulipa is *allocatable*, so it lives in the main RWA-VAULT section, not here.)
-
-## Suggested demo (~90s)
-
-1. `discover` — show **both** categories: OpenFi 6% vs ZonaLend 4% base (with the
-   210% headline shown as advertised-only), and the RWA-VAULT section with Tulipa
-   ALLOCATABLE + pAlpha gated.
-2. `allocate --amount <small>` — route into the best lending venue (OpenFi USDC),
-   print the approve + supply tx hashes, open the supply tx on the explorer.
-3. `position` — show the supplied balance now exists (and any Tulipa holding).
-4. `withdraw --max` — close the lending loop with a real exit tx.
-
-The point to land: the agent **compared** real on-chain yields across venues,
-**ranked on verified base APY** (not a 210% headline), **kept lending and
-RWA-vault yield honestly separate**, and **acted** with a real txhash — while
-correctly refusing to imply instant liquidity for the term-locked Tulipa vault.
-
-## Skill installation
-
-Installation is **minimal and file-only** (~60 KB): place only `SKILL.md` and
-`scripts/` into the agent's skills directory
-(`~/.claude/skills/pharos-yield-compass/`). It does **not** need git history,
-`README.md`/`AGENTS.md`, `package-lock.json`, `node_modules/`, or an
-`npm install`. A shallow, sparse fetch keeps it lean:
+Install and validate:
 
 ```bash
-DEST=~/.claude/skills/pharos-yield-compass
+npm install
+npx tsc --noEmit
+npx ts-node scripts/router-cli.ts discover
+```
+
+`package.json` intentionally has no npm scripts; use `npx tsc --noEmit` for the
+TypeScript build check and `npx ts-node scripts/router-cli.ts ...` for runtime
+commands.
+
+Environment variables are loaded from `.env` if present:
+
+```bash
+PRIVATE_KEY=your_wallet_private_key_here
+PHAROS_NETWORK=mainnet
+RPC_URL=https://rpc.pharos.xyz
+```
+
+`PHAROS_NETWORK=testnet` switches to chain `688688` and the configured testnet
+OpenFi pool/provider/USDC. `RPC_URL` can override either network's default RPC.
+
+## Repository Layout
+
+- `SKILL.md` — agent-facing skill instructions and command mapping.
+- `scripts/router-cli.ts` — CLI entry point.
+- `scripts/config.ts` — network, reserve, OpenFi, and benchmark config.
+- `scripts/reader.ts` — live reserve, user-position, and data-provider reads.
+- `scripts/router.ts` — risk-adjusted reserve ranking.
+- `scripts/execute.ts` — approve, supply, and withdraw execution.
+- `scripts/analytics.ts` — yield-drag and liquidation-risk analysis.
+- `scripts/prices.ts` / `scripts/abi.ts` — oracle discovery and contract ABIs.
+
+## Skill Installation
+
+Installation is **minimal and file-only**. The skill is ~60 KB and needs only
+`SKILL.md` and `scripts/` placed in the agent's skills directory
+(`~/.claude/skills/pharos-rwa-yield-router/`). It does **not** need the git
+history, `README.md`/`AGENTS.md`, `package-lock.json`, `node_modules/`, or an
+`npm install`.
+
+Use this natural-language prompt with Codex or Claude:
+
+> Install the Pharos RWA Yield Router skill from
+> `https://github.com/Jennycruzy/pharos-rwa-yield-router`.
+
+Agents should interpret that as: place only `SKILL.md` and `scripts/` into the
+skill location so `SKILL.md` is readable — **not** a full `git clone` of the
+repository. A shallow, sparse fetch keeps it lean:
+
+```bash
+DEST=~/.claude/skills/pharos-rwa-yield-router
 git clone --depth 1 --filter=blob:none --no-checkout \
   https://github.com/Jennycruzy/pharos-rwa-yield-router "$DEST"
 git -C "$DEST" sparse-checkout set --no-cone /SKILL.md '/scripts/**'
@@ -259,14 +97,152 @@ git -C "$DEST" checkout
 rm -rf "$DEST/.git"
 ```
 
-Runtime dependencies (`ethers`, `ts-node`, `typescript`) are installed only in a
-working copy when executing the CLI, not as part of skill installation.
+Runtime dependency installation is separate from skill installation. The CLI
+uses `ethers`, `ts-node`, and `typescript`; install those only in a working copy
+when executing `scripts/router-cli.ts`. Before the first CLI run, check for
+`node_modules/` and run `npm install` if it is missing so `npx` uses the local
+`ts-node` instead of stalling on package resolution.
+
+## Workspace Pull Without Clone
+
+To materialize this repository in a workspace without running `git clone`, use
+an empty target directory, initialize git, add the remote, fetch, then check out
+the remote branch:
+
+```bash
+mkdir -p pharos-rwa-yield-router
+cd pharos-rwa-yield-router
+git init
+git remote add origin https://github.com/Jennycruzy/pharos-rwa-yield-router.git
+git fetch origin
+git checkout -B main origin/main
+```
+
+After that, `git pull` updates the same workspace from `origin/main`.
+
+## Current Build Verification
+
+Verified locally on June 5, 2026:
+
+```bash
+npm install
+npx tsc --noEmit
+npx ts-node scripts/router-cli.ts discover
+```
+
+The TypeScript check completed with no errors. The live `discover` command
+returned USDC as allocatable at `6.00%` APY, WETH as `zero-rate`, and pAlpha as
+`gated / not allocatable`; best allocatable reserve was USDC.
+
+`npm install` completed successfully and reported two moderate npm audit
+findings in the dependency tree. Review with `npm audit` before production use
+or before changing dependency versions.
+
+## Historical Verification
+
+These entries prove the wiring was verified previously; they are not current yield data. Run `discover`, `drag`, `risk`, `position`, `allocate`, or `withdraw` for the present state.
+
+
+**Confirmed from a real mainnet supply transaction:**
+- OpenFi pool / spender: `0x30b2e1411fd2ed9f1f46f59497e2186ce5be3b26`
+- USDC token: `0xC879C018dB60520F4355C26eD1a6D572cdAC1815`
+
+**Historical live read path verification (June 4, 2026):**
+- `discover` on mainnet returns USDC at `6.00%` APY, `75%` LTV, `78%`
+  liquidation threshold, `allocatable`; WETH is active/unfrozen but `zero-rate`.
+- Pool `ADDRESSES_PROVIDER()` returns `0x3078361290234F1269034e6f9aF90A7512159fb1`.
+- Addresses provider `getPoolDataProvider()` returns
+  `0x3EF4724f0f2fabfA0ba96AfC711D64e6BE3367Fb`.
+- Addresses provider `getPriceOracle()` returns
+  `0x878aF9E17C0168bBCdB4f33890Bf8CDE7592a6d1`; `getAssetPrice(USDC)` returned
+  `99957102` (8 decimals, about `$0.99957102`).
+
+**Historical live write path verification (June 4, 2026):**
+- Wallet used: `0x0Ac6bf160e208e67AF06d7F00c92AEfBbf089f95`.
+- `allocate --asset USDC --amount 0.01` succeeded:
+  `0x13ddf2dd42a0b7fe8534aec8e0e413f425785173d0a47d79bba5ae904eb04c78`.
+- `withdraw --asset USDC --max` succeeded:
+  `0x3d7a9966c3c955153e60d28bff2cd01b546afd3540cdbbd2345fe48aa73fcb23`.
+- Final `position` read returned no supplied balances across configured reserves.
+
+**Historical reserve verification (June 4, 2026):**
+- USDC: `0xC879C018dB60520F4355C26eD1a6D572cdAC1815`, 6 decimals,
+  active/unfrozen, allocatable.
+- WETH: `0x1f4b7011Ee3d53969bb67F59428a9ec0477856E9`, 18 decimals,
+  active/unfrozen, currently excluded from allocation because supply APY is `0%`.
+
+## Reserve Coverage
+
+The mainnet reserve list was read directly from OpenFi Pool `getReservesList()`
+and currently contains USDC and WETH. Discovery, yield drag, liquidation risk,
+and allocation all use the configured live reserve list.
+
+## Agent Usage
+
+Agents should install runtime dependencies with `npm install` if
+`node_modules/` is missing, then call
+`npx ts-node scripts/router-cli.ts discover` with network access first for any
+exploratory yield request. All router CLI commands require live Pharos/OpenFi
+RPC, so sandboxed agents should request network access before running them. If
+`discover` returns `read-error` for every configured reserve, treat that as an
+RPC/network failure and do not answer from pAlpha or historical docs alone. Use
+write commands only after the user clearly asks to deposit or withdraw funds.
+
+Natural-language requests map to CLI actions like this:
+
+- "What's the best RWA yield on Pharos?" -> `discover`
+- "Show me OpenFi rates" -> `discover`
+- "Where am I losing yield?" -> `drag`
+- "Find my idle USDC" -> `drag`
+- "How close am I to liquidation?" -> `risk`
+- "Put 50 USDC to work" -> `allocate --asset USDC --amount 50`
+- "Earn the best available yield with 50 USDC" -> `allocate --amount 50`
+- "Withdraw my USDC" -> `withdraw --asset USDC --max`
+- "How much am I earning?" -> `position`
+
+Read-only checks accept `--address 0xYourWallet`; without `--address`, the CLI
+uses the wallet derived from `PRIVATE_KEY` in `.env`. If `.env` is missing, the
+CLI creates it from `.env.example` and asks you to fill `PRIVATE_KEY`, then retry.
+
+## Network
+
+Mainnet (chain 1672) by default. `PHAROS_NETWORK=testnet` switches to 688688
+and uses the testnet pool/provider/USDC from the original OpenFi doc. The CLI
+must be allowed to reach the configured RPC URL; in restricted agent sandboxes,
+run CLI commands with network access up front.
+
+## Read-only intelligence
+
+```bash
+npx ts-node scripts/router-cli.ts drag --address 0xYourWallet
+npx ts-node scripts/router-cli.ts risk --address 0xYourWallet
+```
+
+`drag` reports idle configured reserve tokens that could earn in OpenFi, plus
+supplied capital that could move to a higher-APY reserve with equal-or-better
+risk-adjusted profile. `risk` uses the OpenFi price oracle and the protocol's
+own liquidation thresholds to report the aggregate collateral price drop buffer
+for borrowed positions. With no `--address`, both commands derive the wallet
+from `PRIVATE_KEY`.
+
+Live wallet check on June 4, 2026: `drag` found `0.280771 USDC` idle with an
+estimated `0.016846 USDC/year` yield drag; `risk` found no borrowed positions.
+
+## Suggested demo (≈90s)
+
+1. `discover` — show the ranked table with verified USDC/WETH reserves and the
+   pAlpha 14% benchmark flagged "gated / not allocatable."
+2. `allocate --amount <small>` — show it route into the best reserve, print the
+   approve + supply tx hashes, and open the supply tx on the explorer.
+3. `position` — show the supplied balance now exists.
+4. `withdraw --max` — close the loop with a real exit tx.
+
+The point to land: the agent **compared** real on-chain yields, **excluded** the
+risky/gated ones, and **acted** — with a real txhash. The read-only analytics
+submissions can't act; the swap submissions don't compare RWA yield.
 
 ## Safety
 
-`allocate` re-reads the market and aborts if it's no longer allocatable; balance
-(and Tulipa deposit cap) is checked first; approvals go only to the specific
-market/vault used; the private key is read from env and never logged. The router
-never deposits into the pAlpha benchmark, reaches Tulipa only on explicit
-`--venue tulipa` with an RWA notice, and never offers an instant withdraw for the
-term-locked Tulipa vault.
+`allocate` re-reads the reserve and aborts if it's frozen/inactive; balance is
+checked first; approvals go only to the OpenFi pool; the private key is read
+from env and never logged. The router never deposits into the pAlpha benchmark.

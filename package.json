@@ -1,7 +1,7 @@
 {
-  "name": "pharos-yield-compass",
-  "version": "0.2.0",
-  "description": "Pharos Yield Compass — compares Pharos lending yields (OpenFi, ZonaLend) and routes into the best, while mapping them honestly against real-world-asset vault yields (Tulipa, pAlpha).",
+  "name": "pharos-rwa-yield-router",
+  "version": "0.1.0",
+  "description": "Risk-aware RWA yield router for Pharos — discovers OpenFi reserve rates, ranks risk-adjusted, and supplies into the best accessible yield.",
   "license": "MIT",
   "dependencies": { "ethers": "^6.13.0" },
   "devDependencies": { "ts-node": "^10.9.2", "typescript": "^5.4.0", "@types/node": "^20.0.0" }

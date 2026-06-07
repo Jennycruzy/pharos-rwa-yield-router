@@ -6,7 +6,7 @@ it.
 If the user says "install this skill" or provides this repository URL as a
 skill, treat that as a minimal, file-only install. The skill is **60 KB** and
 needs only two things placed in the skill directory
-(`~/.claude/skills/pharos-yield-compass/`):
+(`~/.claude/skills/pharos-rwa-yield-router/`):
 
 - `SKILL.md` — the entry point (must be readable at the skill-dir root)
 - `scripts/` — the CLI it references
@@ -20,7 +20,7 @@ If you fetch from GitHub, use a shallow, no-history fetch and keep only the two
 paths above, e.g.:
 
 ```bash
-DEST=~/.claude/skills/pharos-yield-compass
+DEST=~/.claude/skills/pharos-rwa-yield-router
 git clone --depth 1 --filter=blob:none --no-checkout \
   https://github.com/Jennycruzy/pharos-rwa-yield-router "$DEST"
 git -C "$DEST" sparse-checkout set --no-cone /SKILL.md '/scripts/**'
