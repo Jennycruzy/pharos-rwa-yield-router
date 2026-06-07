@@ -3,28 +3,28 @@
 // CLI entry — the single surface the agent calls. Maps a natural-language
 // request to one command (see SKILL.md).
 //
-//   discover                      show the ranked, risk-adjusted RWA table
-//   allocate --amount 50          supply into the best allocatable reserve
-//   allocate --asset USDC --amount 50   supply into a specific reserve
-//   withdraw --asset USDC --amount 50 | --max
-//   position                      show what you're supplied into + APY
-//   drag [--address 0xYourWallet] show idle/lower-yield capital
-//   risk [--address 0xYourWallet] show borrow liquidation distance
+//   discover                               two categories: LENDING + RWA-VAULT
+//   allocate --amount 50                   supply into the best lending venue
+//   allocate --asset USDC --amount 50      supply a specific asset (best venue)
+//   allocate --venue zonalend --asset USDC --amount 50   supply a named venue
+//   allocate --venue tulipa --amount 50    DEPOSIT into the Tulipa RWA vault
+//   withdraw --asset USDC --amount 50 | --max   [--venue openfi|zonalend]
+//   position                               supplied lending + RWA-vault holdings
+//   drag [--address 0xYourWallet]          idle/lower-yield capital (OpenFi)
+//   risk [--address 0xYourWallet]          borrow liquidation distance (OpenFi)
 // ---------------------------------------------------------------------------
 
 import { JsonRpcProvider, Wallet } from "ethers";
 import { copyFileSync, existsSync } from "fs";
-import { assertConfigured, RPC_URL, RESERVES } from "./config";
-import { rankReserves, bestAllocatable, renderDiscovery } from "./router";
-import { supply, withdraw } from "./execute";
-import { getUserPosition } from "./reader";
-import { formatUnits } from "ethers";
+import { assertConfigured, RPC_URL } from "./config";
 import {
   detectYieldDrag,
   liquidationRisk,
   renderLiquidationRisk,
   renderYieldDrag,
 } from "./analytics";
+import { VENUES, venueById } from "./venues";
+import { discover, renderDiscovery, RankedLending } from "./venues/discovery";
 
 function arg(name: string): string | undefined {
   const i = process.argv.indexOf(`--${name}`);
@@ -62,82 +62,126 @@ async function main(): Promise<void> {
 
   switch (cmd) {
     case "discover": {
-      const rows = await rankReserves();
-      console.log(renderDiscovery(rows));
-      const failures = rows.filter((r) => r.error);
-      if (failures.length === rows.length) {
-        console.error("\nerror: live reserve reads failed for every configured OpenFi reserve.");
+      const d = await discover();
+      console.log(renderDiscovery(d));
+
+      const errored = d.lending.filter((r) => r.status === "read-error");
+      if (d.lending.length > 0 && errored.length === d.lending.length) {
+        console.error("\nerror: live reserve reads failed for every lending reserve.");
         console.error("This usually means the Pharos RPC is unreachable from the current sandbox; retry with network access.");
-        for (const r of failures) {
-          console.error(`  ${r.reserve.symbol}: ${r.error}`);
-        }
+        for (const r of errored) console.error(`  ${r.venueId}/${r.symbol}: ${r.error}`);
         process.exit(1);
       }
-      if (failures.length > 0) {
+      if (errored.length > 0) {
         console.error("\nwarning: some reserve reads failed; ranking excludes read-error reserves.");
-        for (const r of failures) console.error(`  ${r.reserve.symbol}: ${r.error}`);
+        for (const r of errored) console.error(`  ${r.venueId}/${r.symbol}: ${r.error}`);
       }
-      const best = bestAllocatable(rows);
-      if (best) console.log(`\nbest allocatable: ${best.reserve.symbol} @ ${best.apyPct.toFixed(2)}% APY`);
+      if (d.best) {
+        console.log(`\nbest allocatable lending: ${d.best.venueId} ${d.best.symbol} @ ${d.best.baseApy.toFixed(2)}% baseAPY`);
+      }
       break;
     }
 
     case "allocate": {
       const amount = Number(arg("amount"));
       if (!amount || amount <= 0) throw new Error("--amount required and must be > 0");
+      const venueArg = arg("venue");
+      const symbolArg = arg("asset");
 
-      let symbol = arg("asset");
-      if (!symbol) {
-        // route into the best allocatable reserve
-        const rows = await rankReserves();
-        const best = bestAllocatable(rows);
-        if (!best) throw new Error("no allocatable reserve right now");
-        symbol = best.reserve.symbol;
-        console.log(`routing into best reserve: ${symbol} @ ${best.apyPct.toFixed(2)}% APY`);
+      // Explicit venue (the only way to reach the Tulipa RWA vault).
+      if (venueArg) {
+        const v = venueById(venueArg);
+        if (!v) throw new Error(`unknown venue ${venueArg} (enabled: ${VENUES.map((x) => x.id).join(", ")})`);
+        if (!v.supply) throw new Error(`${v.title} is not allocatable`);
+        const symbol = symbolArg ?? (v.kind === "rwa-vault" ? "USDC" : undefined);
+        if (!symbol) throw new Error("--asset required for this venue");
+        if (v.kind === "rwa-vault") {
+          console.log(
+            `NOTE: depositing into the ${v.title} — this is an RWA-VAULT position (real-world-asset exposure), NOT a lending supply. Redemption may be term-locked.`
+          );
+        }
+        const res = await v.supply(symbol, amount);
+        if (!res.ok) {
+          console.error(`allocate aborted: ${res.reason}`);
+          process.exit(1);
+        }
+        if (res.approveTx) console.log(`approved: ${res.approveTx}`);
+        console.log(`${v.kind === "rwa-vault" ? "deposited" : "supplied"} ${amount} ${symbol} into ${v.id} — tx: ${res.txHash}`);
+        break;
       }
 
-      const res = await supply(symbol, amount);
+      // No venue -> route into the best allocatable LENDING venue.
+      const d = await discover();
+      let target: RankedLending | undefined;
+      if (symbolArg) {
+        target = d.lending.find(
+          (r) => r.allocatable && r.symbol.toUpperCase() === symbolArg.toUpperCase()
+        );
+        if (!target) throw new Error(`no allocatable lending venue for ${symbolArg}`);
+      } else {
+        target = d.best;
+        if (!target) throw new Error("no allocatable lending venue right now");
+      }
+      const venue = venueById(target.venueId)!;
+      console.log(`routing into best lending venue: ${venue.id} ${target.symbol} @ ${target.baseApy.toFixed(2)}% baseAPY`);
+      const res = await venue.supply!(target.symbol, amount);
       if (!res.ok) {
         console.error(`allocate aborted: ${res.reason}`);
         process.exit(1);
       }
       if (res.approveTx) console.log(`approved: ${res.approveTx}`);
-      console.log(`supplied ${amount} ${symbol} — tx: ${res.txHash}`);
+      console.log(`supplied ${amount} ${target.symbol} into ${venue.id} — tx: ${res.txHash}`);
       break;
     }
 
     case "withdraw": {
       const symbol = arg("asset");
       if (!symbol) throw new Error("--asset required");
+      const venueArg = arg("venue") ?? "openfi"; // default OpenFi (back-compat)
+      const v = venueById(venueArg);
+      if (!v) throw new Error(`unknown venue ${venueArg} (enabled: ${VENUES.map((x) => x.id).join(", ")})`);
+      if (!v.withdraw) {
+        const extra =
+          v.id === "tulipa"
+            ? " Tulipa redemption is term-locked (redeem()/withdraw() revert on-chain); funds stay in the vault until its redemption window opens."
+            : "";
+        throw new Error(`${v.title} does not support instant withdraw.${extra}`);
+      }
       const amount = flag("max") ? "max" : Number(arg("amount"));
       if (amount !== "max" && (!amount || amount <= 0))
         throw new Error("--amount required (or use --max)");
-      const res = await withdraw(symbol, amount as number | "max");
+      const res = await v.withdraw(symbol, amount as number | "max");
       if (!res.ok) {
         console.error(`withdraw aborted: ${res.reason}`);
         process.exit(1);
       }
-      console.log(`withdrew ${amount} ${symbol} — tx: ${res.txHash}`);
+      console.log(`withdrew ${amount} ${symbol} from ${v.id} — tx: ${res.txHash}`);
       break;
     }
 
     case "position": {
       const user = userAddress();
       console.log(`positions for ${user}:`);
-      for (const r of RESERVES) {
+      let any = false;
+      for (const v of VENUES) {
+        if (!v.position) continue;
         try {
-          const p = await getUserPosition(r, user);
-          if (p.suppliedRaw > 0n) {
-            console.log(`  ${r.symbol}: ${formatUnits(p.suppliedRaw, p.decimals)} supplied`);
+          const ps = await v.position(user);
+          for (const p of ps) {
+            any = true;
+            const val = p.valueUsd != null ? ` (~$${p.valueUsd.toFixed(2)})` : "";
+            console.log(`  [${p.kind}] ${v.id}: ${p.amount} ${p.symbol}${val}${p.note ? ` — ${p.note}` : ""}`);
           }
         } catch {
-          /* skip reserves that error */
+          /* skip venues that error */
         }
       }
+      if (!any) console.log("  no positions across enabled venues");
       break;
     }
 
     case "drag": {
+      // OpenFi-based intelligence (unchanged).
       const user = userAddress();
       const items = await detectYieldDrag(user);
       console.log(renderYieldDrag(user, items));
@@ -146,6 +190,7 @@ async function main(): Promise<void> {
 
     case "risk":
     case "liq": {
+      // OpenFi-based liquidation analysis (unchanged).
       const user = userAddress();
       const result = await liquidationRisk(user);
       console.log(renderLiquidationRisk(user, result));

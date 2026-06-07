@@ -31,3 +31,32 @@ export const ADDRESSES_PROVIDER_ABI = [
 export const PRICE_ORACLE_ABI = [
   "function getAssetPrice(address asset) view returns (uint256)",
 ];
+
+// Tulipa RWA-vault interface. The deposit path is the EXACT method the user's
+// settled tx used: depositWithPermit(...) (selector 0x50921b23) — an EIP-2612
+// USDC permit bundled with the ERC-4626 deposit in one tx (no separate approve).
+// redeem/withdraw are NOT wired because Tulipa redemption is term-locked (see
+// config.ts TULIPA). The read functions report the user's share position and its
+// current asset value.
+export const ERC4626_ABI = [
+  "function asset() view returns (address)",
+  "function symbol() view returns (string)",
+  "function decimals() view returns (uint8)",
+  "function deposit(uint256 assets, address receiver) returns (uint256)",
+  "function depositWithPermit(uint256 assets, address receiver, uint256 deadline, uint8 v, bytes32 r, bytes32 s) returns (uint256)",
+  "function maxDeposit(address receiver) view returns (uint256)",
+  "function balanceOf(address owner) view returns (uint256)",
+  "function convertToAssets(uint256 shares) view returns (uint256)",
+  "function previewRedeem(uint256 shares) view returns (uint256)",
+  "function maxRedeem(address owner) view returns (uint256)",
+];
+
+// EIP-2612 permit machinery on the USDC token, needed to build the signature
+// that depositWithPermit consumes. DOMAIN_SEPARATOR lets us self-check the
+// EIP-712 domain (name/version/chainId) before signing.
+export const ERC2612_ABI = [
+  "function nonces(address owner) view returns (uint256)",
+  "function name() view returns (string)",
+  "function version() view returns (string)",
+  "function DOMAIN_SEPARATOR() view returns (bytes32)",
+];

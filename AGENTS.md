@@ -1,15 +1,17 @@
 # Agent Instructions
 
-This repository is a Codex/agent skill package for the Pharos RWA Yield Router.
+This repository is a Codex/agent skill package for the Pharos Yield Compass
+(machine name `pharos-yield-compass`) — a Pharos lending router with RWA-vault
+intelligence. (The git repository is still named `pharos-rwa-yield-router`.)
 
 ## Install Behavior
 
 - Treat `SKILL.md` as the skill entry point.
-- If the user says "install this skill", "install the Pharos RWA Yield Router
+- If the user says "install this skill", "install the Pharos Yield Compass
   skill", or gives this repository URL as a skill, interpret that as a minimal,
   file-only skill installation request.
 - Installing the skill means placing only `SKILL.md` and `scripts/` into the
-  agent's skills directory (`~/.claude/skills/pharos-rwa-yield-router/`). The
+  agent's skills directory (`~/.claude/skills/pharos-yield-compass/`). The
   whole payload is ~60 KB.
 - Do **not** do a full `git clone` of this repository (it pulls the entire git
   history and repo-only files like `README.md`, `AGENTS.md`, and
